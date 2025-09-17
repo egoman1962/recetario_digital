@@ -42,9 +42,30 @@ class App(ctk.CTk):
 
         self.frame_ingredientes = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
         self.frame_ingredientes.place(x=984, y=24)
+        self.frame_ingredientes.pack_propagate(False)
+        self._build_ingredientes()
 
         self.frame_preparacion = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
         self.frame_preparacion.place(x=984, y=504)
+        self.frame_preparacion.pack_propagate(False)
+        self._build_preparación()
+
+
+    def _build_ingredientes(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_ingredientes, text="Ingredientes", font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+        self.txt_ingredientes = ctk.CTkTextbox(self.frame_ingredientes, wrap="word")
+        self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+    def _build_preparación(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_preparacion, text="Preparación", font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+        self.txt_preparación = ctk.CTkTextbox(self.frame_preparacion, wrap="word")
+        self.txt_preparación.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+
 
 if __name__ == "__main__":
     app = App()

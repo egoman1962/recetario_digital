@@ -11,7 +11,7 @@ APP_TITLE = "Recetario Digital"
 
 class App(ctk.CTk):
     def __init__(self):
-        super().__init__()
+        super().__init__(fg_color='gray6')
         self.title(APP_TITLE)
 
         ctk.set_appearance_mode("dark")
@@ -24,12 +24,46 @@ class App(ctk.CTk):
         self.resizable(True, True)
 
         # Frame izquierdo
-        self.frame1 = ctk.CTkFrame(self, fg_color="teal", width=360, height=984)
-        self.frame1.place(x=12, y=12)
+        self.frame_izquierdo = ctk.CTkFrame(self, fg_color='gray12', width=360, height=984)
+        self.frame_izquierdo.place(x=12, y=12)
 
         # Frame derecho
-        self.frame2 = ctk.CTkFrame(self, fg_color="purple", width=1518, height=984)
-        self.frame2.place(x=388, y=12)
+        self.frame_derecho = ctk.CTkFrame(self, fg_color='gray12', width=1518, height=984)
+        self.frame_derecho.place(x=388, y=12)
+
+        self.frame_foto = ctk.CTkFrame(self.frame_derecho , fg_color='gray6', width=456, height=456)
+        self.frame_foto.place(x=24, y=24)
+
+        self.frame_datos = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=456, height=456)
+        self.frame_datos.place(x=504, y=24)
+
+        self.frame_tabla = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=936, height=456)
+        self.frame_tabla.place(x=24, y=504)
+
+        self.frame_ingredientes = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
+        self.frame_ingredientes.place(x=984, y=24)
+        self.frame_ingredientes.pack_propagate(False)
+        self._build_ingredientes()
+
+        self.frame_preparacion = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
+        self.frame_preparacion.place(x=984, y=504)
+        self.frame_preparacion.pack_propagate(False)
+        self._build_preparacion()
+
+
+    def _build_ingredientes(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_ingredientes, text="Ingredientes", font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+        self.txt_ingredientes = ctk.CTkTextbox(self.frame_ingredientes, wrap="word")
+        self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+    def _build_preparacion(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_preparacion, text="Preparación", font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+        self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion, wrap="word")
+        self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
 if __name__ == "__main__":
     app = App()

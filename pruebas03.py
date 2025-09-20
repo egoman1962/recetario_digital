@@ -36,9 +36,7 @@ class App(ctk.CTk):
 
         self.frame_datos = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=456, height=456)
         self.frame_datos.place(x=504, y=24)
-
-        self.frame_tabla = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=936, height=456)
-        self.frame_tabla.place(x=24, y=504)
+        self._build_frame_datos()
 
         self.frame_ingredientes = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
         self.frame_ingredientes.place(x=984, y=24)
@@ -49,6 +47,9 @@ class App(ctk.CTk):
         self.frame_preparacion.place(x=984, y=504)
         self.frame_preparacion.pack_propagate(False)
         self._build_preparacion()
+
+        self.frame_tabla = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=936, height=456)
+        self.frame_tabla.place(x=24, y=504)
 
 
     def _build_ingredientes(self):
@@ -64,6 +65,40 @@ class App(ctk.CTk):
         title.pack(anchor="w", **pad)
         self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion, wrap="word")
         self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+    def _build_frame_datos(self):
+        # Título del frame
+        lbl_titulo = ctk.CTkLabel(
+            self.frame_datos,
+            text="Receta",
+            font=("Arial", 20, "bold")
+        )
+        lbl_titulo.grid(row=0, column=0, columnspan=2, pady=10)
+
+        # Nombre
+        lbl_nombre = ctk.CTkLabel(self.frame_datos, text="Nombre:")
+        lbl_nombre.grid(row=1, column=0, sticky="w", padx=10, pady=5)
+
+        self.entry_nombre = ctk.CTkEntry(self.frame_datos, width=300)
+        self.entry_nombre.grid(row=1, column=1, padx=10, pady=5)
+
+        # Categoría
+        lbl_categoria = ctk.CTkLabel(self.frame_datos, text="Categoría:")
+        lbl_categoria.grid(row=2, column=0, sticky="w", padx=10, pady=5)
+
+        self.combo_categoria = ctk.CTkComboBox(
+            self.frame_datos,
+            values=["Desayuno", "Comida", "Cena", "Snack", "Postre", "Bebida"],
+            width=300
+        )
+        self.combo_categoria.grid(row=2, column=1, padx=10, pady=5)
+
+        # Tiempo
+        lbl_tiempo = ctk.CTkLabel(self.frame_datos, text="Tiempo:")
+        lbl_tiempo.grid(row=3, column=0, sticky="w", padx=10, pady=5)
+
+        self.entry_tiempo = ctk.CTkEntry(self.frame_datos, width=300)
+        self.entry_tiempo.grid(row=3, column=1, padx=10, pady=5)
 
 if __name__ == "__main__":
     app = App()

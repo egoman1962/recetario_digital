@@ -36,6 +36,8 @@ class App(ctk.CTk):
 
         self.frame_datos = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=456, height=456)
         self.frame_datos.place(x=504, y=24)
+        self.frame_datos.pack_propagate(False)
+        self.frame_datos.configure(border_width=6, border_color="#1F6AA5")
         self._build_frame_datos()
 
         self.frame_ingredientes = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
@@ -54,51 +56,61 @@ class App(ctk.CTk):
 
     def _build_ingredientes(self):
         pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_ingredientes, text="Ingredientes", font=("Arial", 24, "bold"))
+        title = ctk.CTkLabel(self.frame_ingredientes, text="INGREDIENTES", text_color='green', font=("Arial", 24, "bold"))
         title.pack(anchor="w", **pad)
         self.txt_ingredientes = ctk.CTkTextbox(self.frame_ingredientes, wrap="word")
         self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
     def _build_preparacion(self):
         pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_preparacion, text="Preparación", font=("Arial", 24, "bold"))
+        title = ctk.CTkLabel(self.frame_preparacion, text="PREPARACION", text_color='green',  font=("Arial", 24, "bold"))
         title.pack(anchor="w", **pad)
         self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion, wrap="word")
         self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
+
+
     def _build_frame_datos(self):
-        # Título del frame
-        lbl_titulo = ctk.CTkLabel(
-            self.frame_datos,
-            text="Receta",
-            font=("Arial", 20, "bold")
-        )
-        lbl_titulo.grid(row=0, column=0, columnspan=2, pady=10)
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_datos, text="RECETA", text_color='green', font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+        self.txt_datos = ctk.CTkTextbox(self.frame_datos, wrap="word")
+        self.txt_datos.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
         # Nombre
-        lbl_nombre = ctk.CTkLabel(self.frame_datos, text="Nombre:")
-        lbl_nombre.grid(row=1, column=0, sticky="w", padx=10, pady=5)
+        lbl_nombre = ctk.CTkLabel(self.frame_datos, text="Nombre:", font=("Arial", 21, "bold"), fg_color='gray12')
+        lbl_nombre.place(x=72, y=72)
 
-        self.entry_nombre = ctk.CTkEntry(self.frame_datos, width=300)
-        self.entry_nombre.grid(row=1, column=1, padx=10, pady=5)
+        self.entry_nombre = ctk.CTkEntry(self.frame_datos, width=300, font=("Arial", 18, "bold"), fg_color="#1F6AA5", border_color="#144870")
+        self.entry_nombre.place(x=18, y=120)
 
         # Categoría
-        lbl_categoria = ctk.CTkLabel(self.frame_datos, text="Categoría:")
-        lbl_categoria.grid(row=2, column=0, sticky="w", padx=10, pady=5)
+        lbl_categoria = ctk.CTkLabel(
+            self.frame_datos,
+            text="Categoría:",
+            font=("Arial", 21, "bold"),
+            fg_color = 'gray12'
+        )
+        lbl_categoria.place(x=72, y=180)
 
-        self.combo_categoria = ctk.CTkComboBox(
+        self.option_categoria = ctk.CTkOptionMenu(
             self.frame_datos,
             values=["Desayuno", "Comida", "Cena", "Snack", "Postre", "Bebida"],
-            width=300
+            width=300,
+            font=("Arial", 16, "bold"), button_color="#144870"
         )
-        self.combo_categoria.grid(row=2, column=1, padx=10, pady=5)
+        self.option_categoria.place(x=18, y=228)
+
+        # Valor inicial
+        self.option_categoria.set("Desayuno")
 
         # Tiempo
-        lbl_tiempo = ctk.CTkLabel(self.frame_datos, text="Tiempo:")
-        lbl_tiempo.grid(row=3, column=0, sticky="w", padx=10, pady=5)
+        lbl_tiempo = ctk.CTkLabel(self.frame_datos, text="Tiempo:", font=("Arial", 21, "bold"), fg_color='gray12')
+        lbl_tiempo.place(x=72, y=288)
 
-        self.entry_tiempo = ctk.CTkEntry(self.frame_datos, width=300)
-        self.entry_tiempo.grid(row=3, column=1, padx=10, pady=5)
+        self.entry_tiempo = ctk.CTkEntry(self.frame_datos, width=300, fg_color="#1F6AA5", border_color="#144870")
+        self.entry_tiempo.place(x=18, y=336)
+
 
 if __name__ == "__main__":
     app = App()

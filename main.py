@@ -1,4 +1,6 @@
 import customtkinter as ctk
+from tkinter import filedialog
+from PIL import Image
 
 # Nitidez en Windows (opcional)
 try:
@@ -96,8 +98,28 @@ class App(ctk.CTk):
         self.btn_quitar.place(x=250, y=378)
 
     def _cargar_foto(self):
-        # Aquí luego pondremos el código para abrir el explorador y cargar la imagen
-        print("Cargar foto presionado")
+        # Abrir explorador para elegir imagen
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar fotografía",
+            filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.gif *.bmp")]
+        )
+
+        if file_path:  # Si se eligió un archivo
+            try:
+                # Abrir y redimensionar imagen
+                img = Image.open(file_path)
+                img = img.resize((416, 312), Image.LANCZOS)
+
+                # Convertir a CTkImage
+                foto = ctk.CTkImage(light_image=img, dark_image=img, size=(416, 312))
+
+                # Mostrar en el label
+                self.lbl_foto.configure(image=foto, text="")
+                self.lbl_foto.image = foto  # guardar referencia
+                print(f"Foto cargada: {file_path}")
+
+            except Exception as e:
+                print(f"Error al cargar imagen: {e}")
 
     def _quitar_foto(self):
         # Esto limpia el recuadro

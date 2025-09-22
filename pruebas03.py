@@ -14,8 +14,8 @@ class App(ctk.CTk):
         super().__init__(fg_color='gray6')
         self.title(APP_TITLE)
 
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_appearance_mode('dark')
+        ctk.set_default_color_theme('blue')
 
         # Abrir directamente maximizada al 100%
         self.state("zoomed")
@@ -37,7 +37,7 @@ class App(ctk.CTk):
         self.frame_datos = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=456, height=456)
         self.frame_datos.place(x=504, y=24)
         self.frame_datos.pack_propagate(False)
-        self.frame_datos.configure(border_width=6, border_color="#1F6AA5")
+        self.frame_datos.configure(border_width=6, border_color='#1F6AA5')
         self._build_frame_datos()
 
         self.frame_ingredientes = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
@@ -56,14 +56,16 @@ class App(ctk.CTk):
 
     def _build_ingredientes(self):
         pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_ingredientes, text="INGREDIENTES", text_color='green', font=("Arial", 24, "bold"))
+        title = ctk.CTkLabel(self.frame_ingredientes, text="INGREDIENTES",
+                             text_color='green', font=("Arial", 24, "bold"))
         title.pack(anchor="w", **pad)
         self.txt_ingredientes = ctk.CTkTextbox(self.frame_ingredientes, wrap="word")
         self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
     def _build_preparacion(self):
         pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_preparacion, text="PREPARACION", text_color='green',  font=("Arial", 24, "bold"))
+        title = ctk.CTkLabel(self.frame_preparacion, text="PREPARACION",
+                             text_color='green',  font=("Arial", 24, "bold"))
         title.pack(anchor="w", **pad)
         self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion, wrap="word")
         self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
@@ -72,44 +74,39 @@ class App(ctk.CTk):
 
     def _build_frame_datos(self):
         pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_datos, text="RECETA", text_color='green', font=("Arial", 24, "bold"))
+        title = ctk.CTkLabel(self.frame_datos, text="RECETA",
+                             text_color='green', font=("Arial", 24, "bold"))
         title.pack(anchor="w", **pad)
         self.txt_datos = ctk.CTkTextbox(self.frame_datos, wrap="word")
         self.txt_datos.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
         # Nombre
-        lbl_nombre = ctk.CTkLabel(self.frame_datos, text="Nombre:", font=("Arial", 21, "bold"), fg_color='gray12')
-        lbl_nombre.place(x=72, y=72)
-
-        self.entry_nombre = ctk.CTkEntry(self.frame_datos, width=300, font=("Arial", 18, "bold"), fg_color="#1F6AA5", border_color="#144870")
-        self.entry_nombre.place(x=18, y=120)
+        lbl_nombre = ctk.CTkLabel(self.frame_datos, text="Nombre:",
+                                  font=("Arial", 21, "bold"), fg_color='gray12')
+        lbl_nombre.place(x=90, y=72)
+        self.entry_nombre = ctk.CTkEntry(self.frame_datos, width=300,
+                                         font=("Arial", 18, "bold"), fg_color='#1F6AA5', border_color='#144870')
+        self.entry_nombre.place(x=54, y=120)
 
         # Categoría
-        lbl_categoria = ctk.CTkLabel(
-            self.frame_datos,
-            text="Categoría:",
-            font=("Arial", 21, "bold"),
-            fg_color = 'gray12'
-        )
-        lbl_categoria.place(x=72, y=180)
+        lbl_categoria = ctk.CTkLabel(self.frame_datos,text="Categoría:",
+            font=("Arial", 21, "bold"),fg_color = 'gray12' )
+        lbl_categoria.place(x=90, y=180)
 
-        self.option_categoria = ctk.CTkOptionMenu(
-            self.frame_datos,
-            values=["Desayuno", "Comida", "Cena", "Snack", "Postre", "Bebida"],
-            width=300,
-            font=("Arial", 16, "bold"), button_color="#144870"
-        )
-        self.option_categoria.place(x=18, y=228)
-
+        self.option_categoria = ctk.CTkOptionMenu(self.frame_datos,
+            values=["Desayuno", "Comida", "Cena", "Snack", "Postre", "Bebida"], width=300,
+            font=("Arial", 16, "bold"), button_color='#144870')
+        self.option_categoria.place(x=54, y=228)
         # Valor inicial
         self.option_categoria.set("Desayuno")
 
         # Tiempo
-        lbl_tiempo = ctk.CTkLabel(self.frame_datos, text="Tiempo:", font=("Arial", 21, "bold"), fg_color='gray12')
-        lbl_tiempo.place(x=72, y=288)
-
-        self.entry_tiempo = ctk.CTkEntry(self.frame_datos, width=300, fg_color="#1F6AA5", border_color="#144870")
-        self.entry_tiempo.place(x=18, y=336)
+        lbl_tiempo = ctk.CTkLabel(self.frame_datos, text="Tiempo:",
+                                  font=("Arial", 21, "bold"), fg_color='gray12')
+        lbl_tiempo.place(x=90, y=288)
+        self.entry_tiempo = ctk.CTkEntry(self.frame_datos, width=300,
+                                         fg_color='#1F6AA5', border_color='#144870')
+        self.entry_tiempo.place(x=54, y=336)
 
 
 if __name__ == "__main__":

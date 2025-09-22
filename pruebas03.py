@@ -33,6 +33,9 @@ class App(ctk.CTk):
 
         self.frame_foto = ctk.CTkFrame(self.frame_derecho , fg_color='gray6', width=456, height=456)
         self.frame_foto.place(x=24, y=24)
+        self.frame_foto.pack_propagate(False)
+        self.frame_foto.configure(border_width=6, border_color='#1F6AA5')
+        self._build_frame_foto()
 
         self.frame_datos = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=456, height=456)
         self.frame_datos.place(x=504, y=24)
@@ -53,6 +56,54 @@ class App(ctk.CTk):
         self.frame_tabla = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=936, height=456)
         self.frame_tabla.place(x=24, y=504)
 
+    def _build_frame_foto(self):
+        pad = {'padx': 45, 'pady': 6}
+
+        # --- Título ---
+        title = ctk.CTkLabel(
+            self.frame_foto,
+            text="FOTOGRAFÍA",
+            text_color='green',
+            font=("Arial", 24, "bold")
+        )
+        title.pack(anchor="w", **pad)
+
+        # --- Recuadro para la imagen ---
+        self.lbl_foto = ctk.CTkLabel(
+            self.frame_foto,
+            text="Sin foto",
+            width=416,  # ajustado al tamaño del frame
+            height=312,
+            fg_color="gray10",
+            text_color="gray70",
+            corner_radius=12,
+            anchor="center"
+        )
+        self.lbl_foto.pack(padx=16, pady=(0, 12))
+
+        # --- Frame inferior para los botones ---
+        btn_frame = ctk.CTkFrame(self.frame_foto, fg_color="transparent")
+        btn_frame.pack(side="bottom", pady=10)
+
+        # Botón para cargar
+        self.btn_cargar = ctk.CTkButton(self.frame_foto, text="Cargar foto", font=("Arial", 18, "bold"),
+                                        width=150, command=self._cargar_foto, height=45)
+        self.btn_cargar.place(x=40, y=378)
+
+        # Botón para quitar
+        self.btn_quitar = ctk.CTkButton(self.frame_foto, text="Quitar foto", font=("Arial", 18, "bold"),
+                                        width=150, command=self._quitar_foto, height=45)
+        self.btn_quitar.place(x=250, y=378)
+
+    def _cargar_foto(self):
+        # Aquí luego pondremos el código para abrir el explorador y cargar la imagen
+        print("Cargar foto presionado")
+
+    def _quitar_foto(self):
+        # Esto limpia el recuadro
+        self.lbl_foto.configure(image=None, text="Sin foto")
+        self.lbl_foto.image = None
+        print("Foto quitada")
 
     def _build_ingredientes(self):
         pad = {'padx': 45, 'pady': 6}
@@ -69,8 +120,6 @@ class App(ctk.CTk):
         title.pack(anchor="w", **pad)
         self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion, wrap="word")
         self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
-
-
 
     def _build_frame_datos(self):
         pad = {'padx': 45, 'pady': 6}

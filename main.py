@@ -1,13 +1,8 @@
 import customtkinter as ctk
+from CTkMessagebox import CTkMessagebox
 from tkinter import filedialog
 from PIL import Image
 
-# Nitidez en Windows (opcional)
-try:
-    from ctypes import windll
-    windll.shcore.SetProcessDpiAwareness(1)
-except Exception:
-    pass
 
 APP_TITLE = "Recetario Digital"
 
@@ -57,6 +52,10 @@ class App(ctk.CTk):
 
         self.frame_tabla = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=936, height=456)
         self.frame_tabla.place(x=24, y=504)
+        self.frame_tabla.pack_propagate(False)
+        self._build_tabla()
+
+    # PANEL DE FOTO #######################################################################################
 
     def _build_frame_foto(self):
         pad = {'padx': 45, 'pady': 6}
@@ -66,18 +65,17 @@ class App(ctk.CTk):
             self.frame_foto,
             text="FOTOGRAFÍA",
             text_color='green',
-            font=("Arial", 24, "bold")
-        )
+            font=("Arial", 24, "bold"))
         title.pack(anchor="w", **pad)
 
         # --- Recuadro para la imagen ---
         self.lbl_foto = ctk.CTkLabel(
             self.frame_foto,
             text="Sin foto",
-            width=416,  # ajustado al tamaño del frame
-            height=312,
-            fg_color="gray10",
-            text_color="gray70",
+            width=330,  # ajustado al tamaño del frame
+            height=330,
+            fg_color='gray6',
+            text_color='BLUE',
             corner_radius=12,
             anchor="center"
         )
@@ -90,12 +88,12 @@ class App(ctk.CTk):
         # Botón para cargar
         self.btn_cargar = ctk.CTkButton(self.frame_foto, text="Cargar foto", font=("Arial", 18, "bold"),
                                         width=150, command=self._cargar_foto, height=45)
-        self.btn_cargar.place(x=40, y=378)
+        self.btn_cargar.place(x=40, y=390)
 
         # Botón para quitar
         self.btn_quitar = ctk.CTkButton(self.frame_foto, text="Quitar foto", font=("Arial", 18, "bold"),
                                         width=150, command=self._quitar_foto, height=45)
-        self.btn_quitar.place(x=250, y=378)
+        self.btn_quitar.place(x=250, y=390)
 
     def _cargar_foto(self):
         # Abrir explorador para elegir imagen
@@ -108,40 +106,35 @@ class App(ctk.CTk):
             try:
                 # Abrir y redimensionar imagen
                 img = Image.open(file_path)
-                img = img.resize((416, 312), Image.LANCZOS)
+                img = img.resize((318, 318), Image.LANCZOS)
 
                 # Convertir a CTkImage
-                foto = ctk.CTkImage(light_image=img, dark_image=img, size=(416, 312))
+                foto = ctk.CTkImage(light_image=img, dark_image=img, size=(318, 318))
 
                 # Mostrar en el label
                 self.lbl_foto.configure(image=foto, text="")
                 self.lbl_foto.image = foto  # guardar referencia
-                print(f"Foto cargada: {file_path}")
+
+                # Mensaje informativo
+                from tkinter import messagebox
+                CTkMessagebox(title="Fotografía", message="La foto se cargó correctamente.", icon="check")
 
             except Exception as e:
-                print(f"Error al cargar imagen: {e}")
+                CTkMessagebox(title="Error", message=f"No se pudo cargar la imagen:\n{e}", icon="cancel")
 
     def _quitar_foto(self):
         # Esto limpia el recuadro
         self.lbl_foto.configure(image=None, text="Sin foto")
         self.lbl_foto.image = None
-        print("Foto quitada")
+        self._img_actual = None
+        self._img_path = None
 
-    def _build_ingredientes(self):
-        pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_ingredientes, text="INGREDIENTES",
-                             text_color='green', font=("Arial", 24, "bold"))
-        title.pack(anchor="w", **pad)
-        self.txt_ingredientes = ctk.CTkTextbox(self.frame_ingredientes, wrap="word")
-        self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+        # Mensaje informativo
+        CTkMessagebox(title="Fotografía",
+                      message="Se quitó la foto correctamente.",
+                      icon="check")  # puedes usar "check", "info", "warning", "cancel"
 
-    def _build_preparacion(self):
-        pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_preparacion, text="PREPARACION",
-                             text_color='green',  font=("Arial", 24, "bold"))
-        title.pack(anchor="w", **pad)
-        self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion, wrap="word")
-        self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+    # PANEL DE DATOS #######################################################################################
 
     def _build_frame_datos(self):
         pad = {'padx': 45, 'pady': 6}
@@ -166,7 +159,7 @@ class App(ctk.CTk):
 
         self.option_categoria = ctk.CTkOptionMenu(self.frame_datos,
             values=["Desayuno", "Comida", "Cena", "Snack", "Postre", "Bebida"], width=300,
-            font=("Arial", 16, "bold"), button_color='#144870')
+            font=("Arial", 18, "bold"), button_color='#144870')
         self.option_categoria.place(x=54, y=228)
         # Valor inicial
         self.option_categoria.set("Desayuno")
@@ -178,6 +171,48 @@ class App(ctk.CTk):
         self.entry_tiempo = ctk.CTkEntry(self.frame_datos, width=300,
                                          fg_color='#1F6AA5', border_color='#144870')
         self.entry_tiempo.place(x=54, y=336)
+
+# PANEL DE INGREDIENTES #######################################################################################
+
+    def _build_ingredientes(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_ingredientes,
+                     text="INGREDIENTES",
+                     text_color='green',
+                     font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+
+        self.txt_ingredientes = ctk.CTkTextbox(self.frame_ingredientes,
+                                   wrap="word",
+                                   fg_color='orange',
+                                   font=("Arial", 21, "bold"))
+        self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+# PANEL DE PREPARACION #######################################################################################
+
+    def _build_preparacion(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_preparacion,
+                             text="PREPARACION",
+                             text_color='green',
+                             font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+        self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion,
+                              wrap="word",
+                              fg_color='orange',
+                              font=("Arial", 21, "bold"))
+        self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+# PANEL DE TABLA #######################################################################################
+
+    def _build_tabla(self):
+
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_tabla,
+                     text="TABLA",
+                     text_color='green',
+                     font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
 
 
 if __name__ == "__main__":

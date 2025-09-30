@@ -176,34 +176,67 @@ class App(ctk.CTk):
 
     def _build_ingredientes(self):
         pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_ingredientes,
-                     text="INGREDIENTES",
-                     text_color='green',
-                     font=("Arial", 24, "bold"))
+        title = ctk.CTkLabel(
+            self.frame_ingredientes,
+            text="INGREDIENTES",
+            text_color='green',
+            font=("Arial", 24, "bold")
+        )
         title.pack(anchor="w", **pad)
 
-        self.txt_ingredientes = ctk.CTkTextbox(self.frame_ingredientes,
-                                   wrap="word",
-                                   fg_color='gray6',
-                                   font=("Arial", 21, "bold"))
+        self.txt_ingredientes = ctk.CTkTextbox(
+            self.frame_ingredientes,
+            wrap="word",
+            fg_color='gray6',
+            font=("Arial", 21, "bold"),
+            height=15
+        )
         self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
-# PANEL DE PREPARACION #######################################################################################
+        # Insertar la primera viñeta al inicio
+        self.txt_ingredientes.insert("1.0", "● ")
+
+        # Vincular tecla Enter para agregar viñeta en nueva línea
+        self.txt_ingredientes.bind("<Return>", self._add_bullet)
+
+    def _add_bullet(self, event=None):
+        self.txt_ingredientes.insert("insert", "\n.- ")
+        return "break"  # evita que Tkinter agregue un salto extra
+
+    # PANEL DE PREPARACION #######################################################################################
 
     def _build_preparacion(self):
         pad = {'padx': 45, 'pady': 6}
-        title = ctk.CTkLabel(self.frame_preparacion,
-                             text="PREPARACION",
-                             text_color='green',
-                             font=("Arial", 24, "bold"))
+        title = ctk.CTkLabel(
+            self.frame_preparacion,
+            text="PREPARACIÓN",
+            text_color='green',
+            font=("Arial", 24, "bold")
+        )
         title.pack(anchor="w", **pad)
-        self.txt_preparacion = ctk.CTkTextbox(self.frame_preparacion,
-                              wrap="word",
-                              fg_color='gray6',
-                              font=("Arial", 21, "bold"))
+
+        self.txt_preparacion = ctk.CTkTextbox(
+            self.frame_preparacion,
+            wrap="word",
+            fg_color='gray6',
+            font=("Arial", 21, "bold"),
+            height=15
+        )
         self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
 
-# PANEL DE TABLA #######################################################################################
+        # Iniciar con el paso 1
+        self.step_number = 1
+        self.txt_preparacion.insert("1.0", f"{self.step_number}. ")
+
+        # Vincular tecla Enter para insertar el siguiente número
+        self.txt_preparacion.bind("<Return>", self._add_step)
+
+    def _add_step(self, event=None):
+        self.step_number += 1
+        self.txt_preparacion.insert("insert", f"\n{self.step_number}. ")
+        return "break"  # evita salto extra
+
+    # PANEL DE TABLA #######################################################################################
 
     def _build_tabla(self):
 

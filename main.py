@@ -1,14 +1,28 @@
 import customtkinter as ctk
 from CTkMessagebox import CTkMessagebox
 from tkinter import filedialog
+from tkinter import ttk
 from PIL import Image
+from pathlib import Path
+import shutil
 
+import db # Asegúrate de tener db.py en la misma carpeta
 
 APP_TITLE = "Recetario Digital"
+ASSETS_DIR = Path(__file__).with_name("fotos")
+ASSETS_DIR.mkdir(exist_ok=True)
+
+
+
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__(fg_color='gray6')
+
+        db.init_db()  # inicializa la BD
+        self.selected_id = None
+        self._img_path = None
+
         self.title(APP_TITLE)
 
         ctk.set_appearance_mode('dark')
@@ -19,6 +33,14 @@ class App(ctk.CTk):
 
         # Permitir botones del sistema
         self.resizable(True, True)
+
+        # ---- Estado ----
+        self.selected_id = None
+        self._img_path = None  # ruta en ./fotos guardada en BD
+
+        # ---- DB ----
+        db.init_db()
+
 
         # Frame izquierdo
         self.frame_izquierdo = ctk.CTkFrame(self, fg_color='gray12', width=360, height=984)
@@ -54,6 +76,9 @@ class App(ctk.CTk):
         self.frame_tabla.place(x=24, y=504)
         self.frame_tabla.pack_propagate(False)
         self._build_tabla()
+
+    # Refrescar listado al inicio
+        self._refresh_table()
 
     # PANEL DE FOTO #######################################################################################
 
@@ -95,44 +120,42 @@ class App(ctk.CTk):
                                         width=150, command=self._quitar_foto, height=45)
         self.btn_quitar.place(x=250, y=390)
 
+    def _render_photo(self, path: str | None):
+        try:
+            if path and Path(path).exists():
+                img = Image.open(path)
+                img = img.resize((318, 318), Image.LANCZOS)
+                foto = ctk.CTkImage(light_image=img, dark_image=img, size=(318, 318))
+                self.lbl_foto.configure(image=foto, text="")
+                self.lbl_foto.image = foto
+            else:
+                self.lbl_foto.configure(image=None, text="Sin foto")
+                self.lbl_foto.image = None
+        except Exception as e:
+            CTkMessagebox(title="Error", message=f"No se pudo renderizar la imagen:\n{e}", icon="cancel")
+
     def _cargar_foto(self):
-        # Abrir explorador para elegir imagen
         file_path = filedialog.askopenfilename(
             title="Seleccionar fotografía",
             filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.gif *.bmp")]
         )
-
-        if file_path:  # Si se eligió un archivo
+        if file_path:
             try:
-                # Abrir y redimensionar imagen
-                img = Image.open(file_path)
-                img = img.resize((318, 318), Image.LANCZOS)
-
-                # Convertir a CTkImage
-                foto = ctk.CTkImage(light_image=img, dark_image=img, size=(318, 318))
-
-                # Mostrar en el label
-                self.lbl_foto.configure(image=foto, text="")
-                self.lbl_foto.image = foto  # guardar referencia
-
-                # Mensaje informativo
-                from tkinter import messagebox
+                # Copiar a ./fotos para tener ruta estable
+                src = Path(file_path)
+                dst = ASSETS_DIR / src.name
+                if src.resolve() != dst.resolve():
+                    shutil.copyfile(src, dst)
+                self._img_path = str(dst)
+                self._render_photo(self._img_path)
                 CTkMessagebox(title="Fotografía", message="La foto se cargó correctamente.", icon="check")
-
             except Exception as e:
                 CTkMessagebox(title="Error", message=f"No se pudo cargar la imagen:\n{e}", icon="cancel")
 
     def _quitar_foto(self):
-        # Esto limpia el recuadro
-        self.lbl_foto.configure(image=None, text="Sin foto")
-        self.lbl_foto.image = None
-        self._img_actual = None
         self._img_path = None
-
-        # Mensaje informativo
-        CTkMessagebox(title="Fotografía",
-                      message="Se quitó la foto correctamente.",
-                      icon="check")  # puedes usar "check", "info", "warning", "cancel"
+        self._render_photo(None)
+        CTkMessagebox(title="Fotografía", message="Se quitó la foto correctamente.", icon="check")
 
     # PANEL DE DATOS #######################################################################################
 
@@ -200,7 +223,7 @@ class App(ctk.CTk):
         self.txt_ingredientes.bind("<Return>", self._add_bullet)
 
     def _add_bullet(self, event=None):
-        self.txt_ingredientes.insert("insert", "\n.- ")
+        self.txt_ingredientes.insert("insert", "\n●  ")
         return "break"  # evita que Tkinter agregue un salto extra
 
     # PANEL DE PREPARACION #######################################################################################
@@ -246,6 +269,230 @@ class App(ctk.CTk):
                      text_color='green',
                      font=("Arial", 24, "bold"))
         title.pack(anchor="w", **pad)
+
+        # Barra de búsqueda
+        search_bar = ctk.CTkFrame(self.frame_tabla, fg_color="transparent")
+        search_bar.pack(fill="x", padx=16)
+        self.entry_search = ctk.CTkEntry(search_bar, placeholder_text="Buscar nombre, categoría o ingrediente…")
+        self.entry_search.pack(side="left", fill="x", expand=True)
+        ctk.CTkButton(search_bar, text="Buscar", width=100, command=self._on_search).pack(side="left", padx=6)
+        ctk.CTkButton(search_bar, text="Limpiar", width=100, command=self._on_search_clear).pack(side="left")
+
+        # Tabla (ttk.Treeview)
+        table_wrap = ctk.CTkFrame(self.frame_tabla, fg_color='gray10')
+        table_wrap.pack(fill="both", expand=True, padx=16, pady=12)
+
+        columns = ("id", "nombre", "categoria", "tiempo")
+        self.tree = ttk.Treeview(table_wrap, columns=columns, show="headings")
+        self.tree.heading("id", text="ID")
+        self.tree.heading("nombre", text="Nombre")
+        self.tree.heading("categoria", text="Categoría")
+        self.tree.heading("tiempo", text="Tiempo")
+        self.tree.column("id", width=60, anchor="center")
+        self.tree.column("nombre", width=260)
+        self.tree.column("categoria", width=150, anchor="center")
+        self.tree.column("tiempo", width=120, anchor="center")
+        self.tree.pack(fill="both", expand=True, padx=8, pady=8)
+        self.tree.bind("<<TreeviewSelect>>", self._on_select_row)
+
+        # Botonera CRUD
+        btns = ctk.CTkFrame(self.frame_tabla, fg_color="transparent")
+        btns.pack(fill="x", padx=16, pady=(0, 12))
+        ctk.CTkButton(btns, text="Nuevo", command=self._on_new).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Guardar", command=self._on_save).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Actualizar", command=self._on_update).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Borrar", fg_color="#a33", hover_color="#c55", command=self._on_delete).pack(side="left", padx=4)
+
+        self.tree.bind("<<TreeviewSelect>>", self._on_select_row)
+
+    # --------------------------- Helpers ------------------------------- #
+    def _collect_form(self):
+        nombre = self.entry_nombre.get().strip()
+        categoria = self.option_categoria.get().strip() if self.option_categoria.get() else None
+        tiempo = self.entry_tiempo.get().strip() or None
+        ingredientes = self.txt_ingredientes.get("1.0", "end").strip() or None
+        instrucciones = self.txt_preparacion.get("1.0", "end").strip() or None
+        foto = self._img_path
+        return nombre, categoria, tiempo, ingredientes, instrucciones, foto
+
+    def _fill_form(self, rec: dict):
+        self.selected_id = rec["id"]
+        # Datos
+        self.entry_nombre.delete(0, "end");
+        self.entry_nombre.insert(0, rec.get("nombre", ""))
+        self.option_categoria.set(rec.get("categoria") or "Desayuno")
+        self.entry_tiempo.delete(0, "end");
+        self.entry_tiempo.insert(0, rec.get("tiempo", ""))
+        # Textos
+        self.txt_ingredientes.delete("1.0", "end")
+        ing = rec.get("ingredientes") or ""
+        self.txt_ingredientes.insert("1.0", ing if ing else "● ")
+        self.txt_preparacion.delete("1.0", "end")
+        inst = rec.get("instrucciones") or "1. "
+        self.txt_preparacion.insert("1.0", inst)
+        # Foto
+        self._img_path = rec.get("foto")
+        self._render_photo(self._img_path)
+        # Reiniciar numerador según contenido
+        try:
+            last_num = 0
+            for line in self.txt_preparacion.get("1.0", "end").splitlines():
+                line = line.strip()
+                if line and line[0].isdigit():
+                    n = ''
+                    for ch in line:
+                        if ch.isdigit():
+                            n += ch
+                        else:
+                            break
+                    if n:
+                        last_num = max(last_num, int(n))
+            self.step_number = max(1, last_num)
+        except Exception:
+            self.step_number = 1
+
+    def _clear_form(self):
+        self.selected_id = None
+        self.entry_nombre.delete(0, "end")
+        self.option_categoria.set("Desayuno")
+        self.entry_tiempo.delete(0, "end")
+        self.txt_ingredientes.delete("1.0", "end");
+        self.txt_ingredientes.insert("1.0", "● ")
+        self.txt_preparacion.delete("1.0", "end");
+        self.step_number = 1;
+        self.txt_preparacion.insert("1.0", "1. ")
+        self._quitar_foto()
+
+    # --------------------------- Tabla/CRUD ---------------------------- #
+    def _refresh_table(self, rows=None):
+        # obtener data
+        data = rows if rows is not None else db.get_all_recipes()
+        # limpiar
+        for i in getattr(self, 'tree', []).get_children():
+            self.tree.delete(i)
+        # llenar
+        for r in data:
+            # r puede ser dict (db robusta) o tupla (si cambiaste algo); soportamos ambos
+            if isinstance(r, dict):
+                self.tree.insert("", "end", values=(r["id"], r.get("nombre"), r.get("categoria"), r.get("tiempo")))
+            else:
+                self.tree.insert("", "end", values=(r[0], r[1], r[2], r[3]))
+
+        """
+            Rellena la Treeview con rayado tipo 'zebra'.
+            Soporta filas como dict (db.py robusto) o como tuplas.
+            """
+        # Asegura tags de estilo (las puedes ajustar a tu gusto)
+        # Nota: si ya los configuraste antes, no pasa nada por reconfigurarlos aquí.
+        self.tree.tag_configure("even", background="#202020", foreground="#e6e6e6")
+        self.tree.tag_configure("odd", background="#262626", foreground="#e6e6e6")
+
+        # (Opcional) preservar selección actual por ID
+        selected_id = None
+        sel = self.tree.selection()
+        if sel:
+            try:
+                selected_id = int(self.tree.item(sel[0])["values"][0])
+            except Exception:
+                selected_id = None
+
+        # Obtener datos (si no se pasaron)
+        data = rows if rows is not None else db.get_all_recipes()
+
+        # Limpiar tabla
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        # Insertar filas alternando tags
+        for idx, r in enumerate(data):
+            tag = "even" if idx % 2 == 0 else "odd"
+
+            if isinstance(r, dict):
+                rid = r.get("id")
+                nombre = r.get("nombre")
+                categoria = r.get("categoria")
+                tiempo = r.get("tiempo")
+            else:
+                # (id, nombre, categoria, tiempo, ingredientes, instrucciones, foto)
+                rid, nombre, categoria, tiempo = r[0], r[1], r[2], r[3]
+
+            self.tree.insert("", "end", values=(rid, nombre, categoria, tiempo), tags=(tag,))
+
+        # (Opcional) volver a seleccionar la fila anterior si sigue visible
+        if selected_id is not None:
+            for iid in self.tree.get_children():
+                try:
+                    if int(self.tree.item(iid)["values"][0]) == selected_id:
+                        self.tree.selection_set(iid)
+                        self.tree.see(iid)
+                        break
+                except Exception:
+                    pass
+
+
+    def _on_select_row(self, _event=None):
+        sel = self.tree.selection()
+        if not sel:
+            return
+        item = self.tree.item(sel[0])
+        rid = int(item["values"][0])
+        rec = db.get_recipe_by_id(rid)
+        # rec puede venir como dict (db.py robusto)
+        if isinstance(rec, dict):
+            self._fill_form(rec)
+        else:
+            keys = ["id", "nombre", "categoria", "tiempo", "ingredientes", "instrucciones", "foto"]
+            self._fill_form(dict(zip(keys, rec)))
+
+    def _on_new(self):
+        self._clear_form()
+
+    def _on_save(self):
+        nombre, categoria, tiempo, ingredientes, instrucciones, foto = self._collect_form()
+
+        if not nombre:
+            CTkMessagebox(title="Validación", message="El nombre es obligatorio.", icon="warning")
+            return
+        rid = db.add_recipe(nombre, categoria, tiempo, ingredientes, instrucciones, foto)
+        self.selected_id = rid
+        self._refresh_table()
+        CTkMessagebox(title="Éxito", message="Receta guardada.", icon="check")
+
+    def _on_update(self):
+        if not self.selected_id:
+            CTkMessagebox(title="Actualizar", message="Selecciona una receta en la tabla.", icon="info")
+            return
+        nombre, categoria, tiempo, ingredientes, instrucciones, foto = self._collect_form()
+        if not nombre:
+            CTkMessagebox(title="Validación", message="El nombre es obligatorio.", icon="warning")
+            return
+        db.update_recipe(self.selected_id, nombre, categoria, tiempo, ingredientes, instrucciones, foto)
+        self._refresh_table()
+        CTkMessagebox(title="Éxito", message="Receta actualizada.", icon="check")
+
+    def _on_delete(self):
+        if not self.selected_id:
+            CTkMessagebox(title="Borrar", message="Selecciona una receta en la tabla.", icon="info")
+            return
+        confirm = CTkMessagebox(title="Confirmar", message="¿Borrar la receta seleccionada?", icon="warning", option_1="Cancelar", option_2="Borrar")
+        if confirm.get() == "Borrar":
+            db.delete_recipe(self.selected_id)
+            self._clear_form()
+            self._refresh_table()
+            CTkMessagebox(title="Éxito", message="Receta borrada.", icon="check")
+
+    # --------------------------- Búsqueda ------------------------------ #
+    def _on_search(self):
+        text = self.entry_search.get().strip()
+        if not text:
+            self._refresh_table(db.get_all_recipes())
+        else:
+            rows = db.search_recipes(text)
+            self._refresh_table(rows)
+
+    def _on_search_clear(self):
+        self.entry_search.delete(0, "end")
+        self._refresh_table(db.get_all_recipes())
 
 
 if __name__ == "__main__":

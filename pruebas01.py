@@ -1,359 +1,500 @@
-# import os
-from pathlib import Path
 import customtkinter as ctk
-from tkinter import ttk, filedialog, messagebox
-from PIL import Image, ImageTk
+from CTkMessagebox import CTkMessagebox
+from tkinter import filedialog
+from tkinter import ttk
+from PIL import Image
+from pathlib import Path
+import shutil
 
-import db
+import db # Asegúrate de tener db.py en la misma carpeta
 
-# ===================== CONSTANTES DE LAYOUT =====================
 APP_TITLE = "Recetario Digital"
-SIZE = (1920, 1080)  # Tamaño único fijo de la ventana
-
-# Panel izquierdo (menú CRUD)
-LEFT_W = 260  # ancho fijo del panel izquierdo
-
-# Gaps (márgenes internos en el área derecha)
-GAP = 8
-
-# Panel derecho (cuadrantes y tabla)
-# Medidas en píxeles. COL_DER se calcula automáticamente.
-COL_IZQ = 620        # ancho de columna izquierda en el área derecha
-FILA_SUP = 420       # alto de fila superior
-FILA_INF = 420       # alto de fila inferior
-TABLA_MIN_ALTO = 180 # alto mínimo para el contenedor de tabla (por si resta poco espacio)
-# ================================================================
-
-CATEGORIAS = [
-    "Desayuno", "Comida", "Cena", "Snack", "Postre", "Bebida"
-]
+ASSETS_DIR = Path(__file__).with_name("fotos")
+ASSETS_DIR.mkdir(exist_ok=True)
 
 
-class RecetarioApp(ctk.CTk):
+
+
+class App(ctk.CTk):
     def __init__(self):
-        super().__init__()
+        super().__init__(fg_color='gray6')
+
+        db.init_db()  # inicializa la BD
+        self.selected_id = None
+        self._img_path = None
+
         self.title(APP_TITLE)
 
-        # Decoraciones estándar y pantalla completa
-        self.overrideredirect(False)
+        ctk.set_appearance_mode('dark')
+        ctk.set_default_color_theme('blue')
+
+        # Abrir directamente maximizada al 100%
         self.state("zoomed")
 
-        # Tamaño fijo y posicionado en 0,0
-        self.minsize(*SIZE)
-        self.maxsize(*SIZE)
-        self.geometry(f"{SIZE[0]}x{SIZE[1]}+0+0")
-        self.resizable(False, False)
+        # Permitir botones del sistema
+        self.resizable(True, True)
 
-        # Reatacha la barra de título si alguna vez usaste overrideredirect(True)
-        self._restore_decorations()
+        # ---- Estado ----
+        self.selected_id = None
+        self._img_path = None  # ruta en ./fotos guardada en BD
 
-        ctk.set_appearance_mode("System")
-        ctk.set_default_color_theme("blue")
-
-        # DB
+        # ---- DB ----
         db.init_db()
 
-        # Estado
-        self.selected_recipe_id = None
-        self.current_photo_path = None
 
-        # Construcción UI (ya NO usamos grid en raíz; todo con place)
-        self._build_left_panel()
-        self._build_right_panel()
+        # Frame izquierdo
+        self.frame_izquierdo = ctk.CTkFrame(self, fg_color='gray12', width=360, height=984)
+        self.frame_izquierdo.place(x=12, y=12)
 
-    # ---------------- Layout Izquierdo (place) -----------------
-    def _build_left_panel(self):
-        self.left = ctk.CTkFrame(self, width=LEFT_W, height=SIZE[1])
-        self.left.place(x=0, y=0)  # anchado a la izquierda, alto total
+        # Frame derecho
+        self.frame_derecho = ctk.CTkFrame(self, fg_color='gray12', width=1518, height=984)
+        self.frame_derecho.place(x=388, y=12)
 
-        title = ctk.CTkLabel(self.left, text=APP_TITLE, font=("Arial", 18, "bold"))
-        title.pack(padx=12, pady=(16, 8))
+        self.frame_foto = ctk.CTkFrame(self.frame_derecho , fg_color='gray6', width=456, height=456)
+        self.frame_foto.place(x=24, y=24)
+        self.frame_foto.pack_propagate(False)
+        self.frame_foto.configure(border_width=6, border_color='#1F6AA5')
+        self._build_frame_foto()
 
-        # Acciones CRUD
-        ctk.CTkLabel(self.left, text="Acciones", anchor="w", font=("Arial", 14, "bold")).pack(fill="x", padx=12)
-        self.btn_nuevo = ctk.CTkButton(self.left, text="Agregar receta", command=self.on_add)
-        self.btn_nuevo.pack(fill="x", padx=12, pady=6)
+        self.frame_datos = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=456, height=456)
+        self.frame_datos.place(x=504, y=24)
+        self.frame_datos.pack_propagate(False)
+        self.frame_datos.configure(border_width=6, border_color='#1F6AA5')
+        self._build_frame_datos()
 
-        self.btn_mod = ctk.CTkButton(self.left, text="Modificar receta", command=self.on_update)
-        self.btn_mod.pack(fill="x", padx=12, pady=6)
+        self.frame_ingredientes = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
+        self.frame_ingredientes.place(x=984, y=24)
+        self.frame_ingredientes.pack_propagate(False)
+        self._build_ingredientes()
 
-        self.btn_del = ctk.CTkButton(self.left, text="Eliminar receta", fg_color="#b3261e", hover_color="#8c1b15",
-                                     command=self.on_delete)
-        self.btn_del.pack(fill="x", padx=12, pady=6)
+        self.frame_preparacion = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=510, height=456)
+        self.frame_preparacion.place(x=984, y=504)
+        self.frame_preparacion.pack_propagate(False)
+        self._build_preparacion()
 
-        # Buscar / Mostrar todas
-        ctk.CTkLabel(self.left, text="Buscar", anchor="w", font=("Arial", 14, "bold")).pack(fill="x", padx=12, pady=(16, 0))
-        self.ent_buscar = ctk.CTkEntry(self.left, placeholder_text="Nombre / categoría / ingrediente")
-        self.ent_buscar.pack(fill="x", padx=12, pady=(6, 6))
-        self.btn_buscar = ctk.CTkButton(self.left, text="Buscar receta", command=self.on_search)
-        self.btn_buscar.pack(fill="x", padx=12, pady=6)
+        self.frame_tabla = ctk.CTkFrame(self.frame_derecho, fg_color='gray6', width=936, height=456)
+        self.frame_tabla.place(x=24, y=504)
+        self.frame_tabla.pack_propagate(False)
+        self._build_tabla()
 
-        self.btn_all = ctk.CTkButton(self.left, text="Mostrar todas", command=self.on_show_all)
-        self.btn_all.pack(fill="x", padx=12, pady=(6, 16))
+    # Refrescar listado al inicio
+        self._refresh_table()
 
-        # Barra de estado
-        self.status = ctk.CTkLabel(self.left, text="Listo", anchor="w")
-        self.status.pack(fill="x", padx=12, pady=(8, 12))
+    # PANEL DE FOTO #######################################################################################
 
-    # ---------------- Layout Derecho (place) -----------------
-    def _build_right_panel(self):
-        # Área derecha total
-        RW = SIZE[0] - LEFT_W           # ancho del área derecha
-        RH = SIZE[1]                     # alto total
-        self.right = ctk.CTkFrame(self, width=RW, height=RH)
-        self.right.place(x=LEFT_W, y=0)
+    def _build_frame_foto(self):
+        pad = {'padx': 45, 'pady': 6}
 
-        # Cálculo de columnas/filas internas
-        col_der = RW - COL_IZQ - (GAP * 3)  # ancho derecha respetando gaps
-        fila_tab = RH - (FILA_SUP + FILA_INF + GAP * 4)
-        fila_tab = max(fila_tab, TABLA_MIN_ALTO)  # asegura mínimo para tabla
+        # --- Título ---
+        title = ctk.CTkLabel(
+            self.frame_foto,
+            text="FOTOGRAFÍA",
+            text_color='green',
+            font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
 
-        # Coordenadas base
-        x1 = GAP
-        x2 = x1 + COL_IZQ + GAP
-        y1 = GAP
-        y2 = y1 + FILA_SUP + GAP
-        y3 = y2 + FILA_INF + GAP  # inicio de la tabla
+        # --- Recuadro para la imagen ---
+        self.lbl_foto = ctk.CTkLabel(
+            self.frame_foto,
+            text="Sin foto",
+            width=330,  # ajustado al tamaño del frame
+            height=330,
+            fg_color='gray6',
+            text_color='BLUE',
+            corner_radius=12,
+            anchor="center"
+        )
+        self.lbl_foto.pack(padx=16, pady=(0, 12))
 
-        # ---- Q1: Datos básicos (arriba izquierda) ----
-        self.q1 = ctk.CTkFrame(self.right, width=COL_IZQ, height=FILA_SUP)
-        self.q1.place(x=x1, y=y1)
-        self._build_q1()
+        # --- Frame inferior para los botones ---
+        btn_frame = ctk.CTkFrame(self.frame_foto, fg_color="transparent")
+        btn_frame.pack(side="bottom", pady=10)
 
-        # ---- Q2: Ingredientes (arriba derecha) ----
-        self.q2 = ctk.CTkFrame(self.right, width=col_der, height=FILA_SUP)
-        self.q2.place(x=x2, y=y1)
-        self._build_q2()
+        # Botón para cargar
+        self.btn_cargar = ctk.CTkButton(self.frame_foto, text="Cargar foto", font=("Arial", 18, "bold"),
+                                        width=150, command=self._cargar_foto, height=45)
+        self.btn_cargar.place(x=40, y=390)
 
-        # ---- Q3: Foto (abajo izquierda) ----
-        self.q3 = ctk.CTkFrame(self.right, width=COL_IZQ, height=FILA_INF)
-        self.q3.place(x=x1, y=y2)
-        self._build_q3()
+        # Botón para quitar
+        self.btn_quitar = ctk.CTkButton(self.frame_foto, text="Quitar foto", font=("Arial", 18, "bold"),
+                                        width=150, command=self._quitar_foto, height=45)
+        self.btn_quitar.place(x=250, y=390)
 
-        # ---- Q4: Instrucciones (abajo derecha) ----
-        self.q4 = ctk.CTkFrame(self.right, width=col_der, height=FILA_INF)
-        self.q4.place(x=x2, y=y2)
-        self._build_q4()
+    def _render_photo(self, path: str | None):
+        try:
+            if path and Path(path).exists():
+                img = Image.open(path)
+                img = img.resize((318, 318), Image.LANCZOS)
+                foto = ctk.CTkImage(light_image=img, dark_image=img, size=(318, 318))
+                self.lbl_foto.configure(image=foto, text="")
+                self.lbl_foto.image = foto
+            else:
+                self.lbl_foto.configure(image=None, text="Sin foto")
+                self.lbl_foto.image = None
+        except Exception as e:
+            CTkMessagebox(title="Error", message=f"No se pudo renderizar la imagen:\n{e}", icon="cancel")
 
-        # ---- Tabla de resultados (abajo a lo ancho) ----
-        container_w = RW - (GAP * 2)
-        container_h = fila_tab
-        container_x = GAP
-        container_y = y3
+    def _cargar_foto(self):
+        file_path = filedialog.askopenfilename(
+            title="Seleccionar fotografía",
+            filetypes=[("Imágenes", "*.jpg *.jpeg *.png *.gif *.bmp")]
+        )
+        if file_path:
+            try:
+                # Copiar a ./fotos para tener ruta estable
+                src = Path(file_path)
+                dst = ASSETS_DIR / src.name
+                if src.resolve() != dst.resolve():
+                    shutil.copyfile(src, dst)
+                self._img_path = str(dst)
+                self._render_photo(self._img_path)
+                CTkMessagebox(title="Fotografía", message="La foto se cargó correctamente.", icon="check")
+            except Exception as e:
+                CTkMessagebox(title="Error", message=f"No se pudo cargar la imagen:\n{e}", icon="cancel")
 
-        self.results_container = ctk.CTkFrame(self.right, width=container_w, height=container_h)
-        self.results_container.place(x=container_x, y=container_y)
+    def _quitar_foto(self):
+        self._img_path = None
+        self._render_photo(None)
+        CTkMessagebox(title="Fotografía", message="Se quitó la foto correctamente.", icon="check")
 
-        # Construir tabla
-        cols = ("id", "nombre", "categoria", "tiempo")
-        self.tree = ttk.Treeview(self.results_container, columns=cols, show="headings", height=6)
+    # PANEL DE DATOS #######################################################################################
+
+    def _build_frame_datos(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_datos, text="RECETA",
+                             text_color='green', font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+        # self.txt_datos = ctk.CTkTextbox(self.frame_datos, wrap="word")
+        # self.txt_datos.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        # Nombre
+        lbl_nombre = ctk.CTkLabel(self.frame_datos, text="NOMBRE:",
+                                  font=("Arial", 21, "bold"), fg_color='gray6')
+        lbl_nombre.place(x=90, y=72)
+        self.entry_nombre = ctk.CTkEntry(self.frame_datos, width=300,
+                                         font=("Arial", 18, "bold"), fg_color='#1F6AA5', border_color='#144870')
+        self.entry_nombre.place(x=54, y=120)
+
+        # Categoría
+        lbl_categoria = ctk.CTkLabel(self.frame_datos,text="CATEGORIA:",
+            font=("Arial", 21, "bold"),fg_color = 'gray6' )
+        lbl_categoria.place(x=90, y=180)
+
+        self.option_categoria = ctk.CTkOptionMenu(self.frame_datos,
+            values=["Desayuno", "Comida", "Cena", "Snack", "Postre", "Bebida"], width=300,
+            font=("Arial", 18, "bold"), button_color='#144870')
+        self.option_categoria.place(x=54, y=228)
+        # Valor inicial
+        self.option_categoria.set("Desayuno")
+
+        # Tiempo
+        lbl_tiempo = ctk.CTkLabel(self.frame_datos, text="TIEMPO:",
+                                  font=("Arial", 21, "bold"), fg_color='gray6')
+        lbl_tiempo.place(x=90, y=288)
+        self.entry_tiempo = ctk.CTkEntry(self.frame_datos, width=300, font=("Arial", 18, "bold"),
+                                         fg_color='#1F6AA5', border_color='#144870')
+        self.entry_tiempo.place(x=54, y=336)
+
+# PANEL DE INGREDIENTES #######################################################################################
+
+    def _build_ingredientes(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(
+            self.frame_ingredientes,
+            text="INGREDIENTES",
+            text_color='green',
+            font=("Arial", 24, "bold")
+        )
+        title.pack(anchor="w", **pad)
+
+        self.txt_ingredientes = ctk.CTkTextbox(
+            self.frame_ingredientes,
+            wrap="word",
+            fg_color='gray6',
+            font=("Arial", 21, "bold"),
+            height=15
+        )
+        self.txt_ingredientes.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        # Insertar la primera viñeta al inicio
+        self.txt_ingredientes.insert("1.0", "● ")
+
+        # Vincular tecla Enter para agregar viñeta en nueva línea
+        self.txt_ingredientes.bind("<Return>", self._add_bullet)
+
+    def _add_bullet(self, event=None):
+        self.txt_ingredientes.insert("insert", "\n●  ")
+        return "break"  # evita que Tkinter agregue un salto extra
+
+    # PANEL DE PREPARACION #######################################################################################
+
+    def _build_preparacion(self):
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(
+            self.frame_preparacion,
+            text="PREPARACIÓN",
+            text_color='green',
+            font=("Arial", 24, "bold")
+        )
+        title.pack(anchor="w", **pad)
+
+        self.txt_preparacion = ctk.CTkTextbox(
+            self.frame_preparacion,
+            wrap="word",
+            fg_color='gray6',
+            font=("Arial", 21, "bold"),
+            height=15
+        )
+        self.txt_preparacion.pack(fill="both", expand=True, padx=6, pady=(0, 6))
+
+        # Iniciar con el paso 1
+        self.step_number = 1
+        self.txt_preparacion.insert("1.0", f"{self.step_number}. ")
+
+        # Vincular tecla Enter para insertar el siguiente número
+        self.txt_preparacion.bind("<Return>", self._add_step)
+
+    def _add_step(self, event=None):
+        self.step_number += 1
+        self.txt_preparacion.insert("insert", f"\n{self.step_number}. ")
+        return "break"  # evita salto extra
+
+    # PANEL DE TABLA #######################################################################################
+
+    def _build_tabla(self):
+
+        pad = {'padx': 45, 'pady': 6}
+        title = ctk.CTkLabel(self.frame_tabla,
+                     text="TABLA",
+                     text_color='green',
+                     font=("Arial", 24, "bold"))
+        title.pack(anchor="w", **pad)
+
+        # Barra de búsqueda
+        search_bar = ctk.CTkFrame(self.frame_tabla, fg_color="transparent")
+        search_bar.pack(fill="x", padx=16)
+        self.entry_search = ctk.CTkEntry(search_bar, placeholder_text="Buscar nombre, categoría o ingrediente…")
+        self.entry_search.pack(side="left", fill="x", expand=True)
+        ctk.CTkButton(search_bar, text="Buscar", width=100, command=self._on_search).pack(side="left", padx=6)
+        ctk.CTkButton(search_bar, text="Limpiar", width=100, command=self._on_search_clear).pack(side="left")
+
+        # Tabla (ttk.Treeview)
+        table_wrap = ctk.CTkFrame(self.frame_tabla, fg_color='gray10')
+        table_wrap.pack(fill="both", expand=True, padx=16, pady=12)
+
+        columns = ("id", "nombre", "categoria", "tiempo")
+        self.tree = ttk.Treeview(table_wrap, columns=columns, show="headings")
         self.tree.heading("id", text="ID")
         self.tree.heading("nombre", text="Nombre")
         self.tree.heading("categoria", text="Categoría")
         self.tree.heading("tiempo", text="Tiempo")
         self.tree.column("id", width=60, anchor="center")
-        self.tree.column("nombre", width=300)
-        self.tree.column("categoria", width=150)
+        self.tree.column("nombre", width=260)
+        self.tree.column("categoria", width=150, anchor="center")
         self.tree.column("tiempo", width=120, anchor="center")
+        self.tree.pack(fill="both", expand=True, padx=8, pady=8)
+        self.tree.bind("<<TreeviewSelect>>", self._on_select_row)
 
-        self.tree.pack(fill="both", expand=True, padx=6, pady=6)
-        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
+        # Botonera CRUD
+        btns = ctk.CTkFrame(self.frame_tabla, fg_color="transparent")
+        btns.pack(fill="x", padx=16, pady=(0, 12))
+        ctk.CTkButton(btns, text="Nuevo", command=self._on_new).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Guardar", command=self._on_save).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Actualizar", command=self._on_update).pack(side="left", padx=4)
+        ctk.CTkButton(btns, text="Borrar", fg_color="#a33", hover_color="#c55", command=self._on_delete).pack(side="left", padx=4)
 
-    # ----------- Q1: Datos básicos -----------
-    def _build_q1(self):
-        pad = {'padx': 8, 'pady': 6}
-        title = ctk.CTkLabel(self.q1, text="Datos básicos", font=("Arial", 15, "bold"))
-        title.grid(row=0, column=0, columnspan=2, sticky="w", **pad)
+        self.tree.bind("<<TreeviewSelect>>", self._on_select_row)
 
-        ctk.CTkLabel(self.q1, text="Nombre:").grid(row=1, column=0, sticky="e", **pad)
-        self.ent_nombre = ctk.CTkEntry(self.q1)
-        self.ent_nombre.grid(row=1, column=1, sticky="ew", **pad)
+    # --------------------------- Helpers ------------------------------- #
+    def _collect_form(self):
+        nombre = self.entry_nombre.get().strip()
+        categoria = self.option_categoria.get().strip() if self.option_categoria.get() else None
+        tiempo = self.entry_tiempo.get().strip() or None
+        ingredientes = self.txt_ingredientes.get("1.0", "end").strip() or None
+        instrucciones = self.txt_preparacion.get("1.0", "end").strip() or None
+        foto = self._img_path
+        return nombre, categoria, tiempo, ingredientes, instrucciones, foto
 
-        ctk.CTkLabel(self.q1, text="Categoría:").grid(row=2, column=0, sticky="e", **pad)
-        self.cbo_categoria = ctk.CTkOptionMenu(self.q1, values=CATEGORIAS)
-        self.cbo_categoria.set(CATEGORIAS[0])
-        self.cbo_categoria.grid(row=2, column=1, sticky="ew", **pad)
-
-        ctk.CTkLabel(self.q1, text="Tiempo (ej. 30 min):").grid(row=3, column=0, sticky="e", **pad)
-        self.ent_tiempo = ctk.CTkEntry(self.q1)
-        self.ent_tiempo.grid(row=3, column=1, sticky="ew", **pad)
-
-        # Para que la columna de entradas se expanda dentro del frame (internamente)
-        self.q1.grid_columnconfigure(0, weight=0)
-        self.q1.grid_columnconfigure(1, weight=1)
-
-    # ----------- Q2: Ingredientes -----------
-    def _build_q2(self):
-        pad = {'padx': 8, 'pady': 6}
-        title = ctk.CTkLabel(self.q2, text="Ingredientes", font=("Arial", 15, "bold"))
-        title.pack(anchor="w", **pad)
-
-        self.txt_ingredientes = ctk.CTkTextbox(self.q2, wrap="word")
-        self.txt_ingredientes.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-
-    # ----------- Q3: Foto -----------
-    def _build_q3(self):
-        pad = {'padx': 8, 'pady': 6}
-        title = ctk.CTkLabel(self.q3, text="Foto de la receta", font=("Arial", 15, "bold"))
-        title.pack(anchor="w", **pad)
-
-        self.photo_label = ctk.CTkLabel(self.q3, text="(Sin imagen)")
-        self.photo_label.pack(fill="both", expand=True, padx=8, pady=8)
-
-        btns = ctk.CTkFrame(self.q3)
-        btns.pack(fill="x", padx=8, pady=(0, 8))
-        ctk.CTkButton(btns, text="Cargar foto", command=self.load_photo).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="Quitar foto", command=self.clear_photo).pack(side="left", padx=4)
-
-    # ----------- Q4: Instrucciones -----------
-    def _build_q4(self):
-        pad = {'padx': 8, 'pady': 6}
-        title = ctk.CTkLabel(self.q4, text="Instrucciones", font=("Arial", 15, "bold"))
-        title.pack(anchor="w", **pad)
-
-        self.txt_instrucciones = ctk.CTkTextbox(self.q4, wrap="word")
-        self.txt_instrucciones.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-
-    # ----------------- Utilidades UI -----------------
-    def _restore_decorations(self):
-        """Reaplica las decoraciones (título/botones) tras cualquier overrideredirect previo."""
-        try:
-            self.update_idletasks()
-            self.withdraw()
-            self.overrideredirect(False)
-            self.after(10, self.deiconify)
-        except Exception:
-            pass
-
-    def clear_form(self):
-        self.selected_recipe_id = None
-        self.ent_nombre.delete(0, "end")
-        self.cbo_categoria.set(CATEGORIAS[0])
-        self.ent_tiempo.delete(0, "end")
+    def _fill_form(self, rec: dict):
+        self.selected_id = rec["id"]
+        # Datos
+        self.entry_nombre.delete(0, "end");
+        self.entry_nombre.insert(0, rec.get("nombre", ""))
+        self.option_categoria.set(rec.get("categoria") or "Desayuno")
+        self.entry_tiempo.delete(0, "end");
+        self.entry_tiempo.insert(0, rec.get("tiempo", ""))
+        # Textos
         self.txt_ingredientes.delete("1.0", "end")
-        self.txt_instrucciones.delete("1.0", "end")
-        self.clear_photo()
-        self.status.configure(text="Listo")
-
-    def load_photo(self):
-        path = filedialog.askopenfilename(
-            title="Selecciona una imagen",
-            filetypes=[("Imágenes", "*.png;*.jpg;*.jpeg;*.webp;*.bmp")],
-        )
-        if not path:
-            return
-        self.current_photo_path = path
-        self._render_photo(path)
-
-    def _render_photo(self, path):
+        ing = rec.get("ingredientes") or ""
+        self.txt_ingredientes.insert("1.0", ing if ing else "● ")
+        self.txt_preparacion.delete("1.0", "end")
+        inst = rec.get("instrucciones") or "1. "
+        self.txt_preparacion.insert("1.0", inst)
+        # Foto
+        self._img_path = rec.get("foto")
+        self._render_photo(self._img_path)
+        # Reiniciar numerador según contenido
         try:
-            # Asegura que q3 ya tenga dimensiones reales antes de escalar
-            self.q3.update_idletasks()
-            im = Image.open(path)
-            max_w = int(self.q3.winfo_width() * 0.9) or 400
-            max_h = int(self.q3.winfo_height() * 0.7) or 250
-            im.thumbnail((max_w, max_h))
-            self._photo_imgtk = ImageTk.PhotoImage(im)
-            self.photo_label.configure(image=self._photo_imgtk, text="")
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo cargar la imagen:\n{e}")
+            last_num = 0
+            for line in self.txt_preparacion.get("1.0", "end").splitlines():
+                line = line.strip()
+                if line and line[0].isdigit():
+                    n = ''
+                    for ch in line:
+                        if ch.isdigit():
+                            n += ch
+                        else:
+                            break
+                    if n:
+                        last_num = max(last_num, int(n))
+            self.step_number = max(1, last_num)
+        except Exception:
+            self.step_number = 1
 
-    def clear_photo(self):
-        self.current_photo_path = None
-        self.photo_label.configure(image=None, text="(Sin imagen)")
+    def _clear_form(self):
+        self.selected_id = None
+        self.entry_nombre.delete(0, "end")
+        self.option_categoria.set("Desayuno")
+        self.entry_tiempo.delete(0, "end")
+        self.txt_ingredientes.delete("1.0", "end");
+        self.txt_ingredientes.insert("1.0", "● ")
+        self.txt_preparacion.delete("1.0", "end");
+        self.step_number = 1;
+        self.txt_preparacion.insert("1.0", "1. ")
+        self._quitar_foto()
 
-    # ----------------- Tabla de resultados -----------------
-    def populate_tree(self, rows):
+    # --------------------------- Tabla/CRUD ---------------------------- #
+    def _refresh_table(self, rows=None):
+        # obtener data
+        data = rows if rows is not None else db.get_all_recipes()
+        # limpiar
+        for i in getattr(self, 'tree', []).get_children():
+            self.tree.delete(i)
+        # llenar
+        for r in data:
+            # r puede ser dict (db robusta) o tupla (si cambiaste algo); soportamos ambos
+            if isinstance(r, dict):
+                self.tree.insert("", "end", values=(r["id"], r.get("nombre"), r.get("categoria"), r.get("tiempo")))
+            else:
+                self.tree.insert("", "end", values=(r[0], r[1], r[2], r[3]))
+
+        """
+            Rellena la Treeview con rayado tipo 'zebra'.
+            Soporta filas como dict (db.py robusto) o como tuplas.
+            """
+        # Asegura tags de estilo (las puedes ajustar a tu gusto)
+        # Nota: si ya los configuraste antes, no pasa nada por reconfigurarlos aquí.
+        self.tree.tag_configure("even", background="#202020", foreground="#e6e6e6")
+        self.tree.tag_configure("odd", background="#262626", foreground="#e6e6e6")
+
+        # (Opcional) preservar selección actual por ID
+        selected_id = None
+        sel = self.tree.selection()
+        if sel:
+            try:
+                selected_id = int(self.tree.item(sel[0])["values"][0])
+            except Exception:
+                selected_id = None
+
+        # Obtener datos (si no se pasaron)
+        data = rows if rows is not None else db.get_all_recipes()
+
+        # Limpiar tabla
         for item in self.tree.get_children():
             self.tree.delete(item)
-        for r in rows:
-            rid, nombre, categoria, tiempo, *_ = r
-            self.tree.insert("", "end", values=(rid, nombre, categoria, tiempo))
 
-    def on_tree_select(self, event=None):
+        # Insertar filas alternando tags
+        for idx, r in enumerate(data):
+            tag = "even" if idx % 2 == 0 else "odd"
+
+            if isinstance(r, dict):
+                rid = r.get("id")
+                nombre = r.get("nombre")
+                categoria = r.get("categoria")
+                tiempo = r.get("tiempo")
+            else:
+                # (id, nombre, categoria, tiempo, ingredientes, instrucciones, foto)
+                rid, nombre, categoria, tiempo = r[0], r[1], r[2], r[3]
+
+            self.tree.insert("", "end", values=(rid, nombre, categoria, tiempo), tags=(tag,))
+
+        # (Opcional) volver a seleccionar la fila anterior si sigue visible
+        if selected_id is not None:
+            for iid in self.tree.get_children():
+                try:
+                    if int(self.tree.item(iid)["values"][0]) == selected_id:
+                        self.tree.selection_set(iid)
+                        self.tree.see(iid)
+                        break
+                except Exception:
+                    pass
+
+
+    def _on_select_row(self, _event=None):
         sel = self.tree.selection()
         if not sel:
             return
-        values = self.tree.item(sel[0], "values")
-        recipe_id = int(values[0])
-        data = db.get_recipe_by_id(recipe_id)
-        if not data:
-            return
-        (rid, nombre, categoria, tiempo, ingredientes, instrucciones, foto) = data
-        self.selected_recipe_id = rid
-        self.ent_nombre.delete(0, "end")
-        self.ent_nombre.insert(0, nombre)
-        self.cbo_categoria.set(categoria if categoria else CATEGORIAS[0])
-        self.ent_tiempo.delete(0, "end")
-        self.ent_tiempo.insert(0, tiempo or "")
-        self.txt_ingredientes.delete("1.0", "end")
-        self.txt_ingredientes.insert("1.0", ingredientes or "")
-        self.txt_instrucciones.delete("1.0", "end")
-        self.txt_instrucciones.insert("1.0", instrucciones or "")
-        self.current_photo_path = foto
-        if foto and Path(foto).exists():
-            self._render_photo(foto)
+        item = self.tree.item(sel[0])
+        rid = int(item["values"][0])
+        rec = db.get_recipe_by_id(rid)
+        # rec puede venir como dict (db.py robusto)
+        if isinstance(rec, dict):
+            self._fill_form(rec)
         else:
-            self.clear_photo()
-        self.status.configure(text=f"Seleccionado ID {rid}")
+            keys = ["id", "nombre", "categoria", "tiempo", "ingredientes", "instrucciones", "foto"]
+            self._fill_form(dict(zip(keys, rec)))
 
-    # ----------------- Acciones CRUD -----------------
-    def on_add(self):
-        nombre = self.ent_nombre.get().strip()
+    def _on_new(self):
+        self._clear_form()
+
+    def _on_save(self):
+        nombre, categoria, tiempo, ingredientes, instrucciones, foto = self._collect_form()
+
         if not nombre:
-            messagebox.showwarning("Validación", "El nombre es obligatorio")
+            CTkMessagebox(title="Validación", message="El nombre es obligatorio.", icon="warning")
             return
-        categoria = self.cbo_categoria.get()
-        tiempo = self.ent_tiempo.get().strip()
-        ingredientes = self.txt_ingredientes.get("1.0", "end").strip()
-        instrucciones = self.txt_instrucciones.get("1.0", "end").strip()
-        foto = self.current_photo_path
         rid = db.add_recipe(nombre, categoria, tiempo, ingredientes, instrucciones, foto)
-        self.status.configure(text=f"Receta agregada (ID {rid})")
-        self.on_show_all()
+        self.selected_id = rid
+        self._refresh_table()
+        CTkMessagebox(title="Éxito", message="Receta guardada.", icon="check")
 
-    def on_update(self):
-        if not self.selected_recipe_id:
-            messagebox.showinfo("Modificar", "Selecciona una receta en la tabla")
+    def _on_update(self):
+        if not self.selected_id:
+            CTkMessagebox(title="Actualizar", message="Selecciona una receta en la tabla.", icon="info")
             return
-        nombre = self.ent_nombre.get().strip()
+        nombre, categoria, tiempo, ingredientes, instrucciones, foto = self._collect_form()
         if not nombre:
-            messagebox.showwarning("Validación", "El nombre es obligatorio")
+            CTkMessagebox(title="Validación", message="El nombre es obligatorio.", icon="warning")
             return
-        categoria = self.cbo_categoria.get()
-        tiempo = self.ent_tiempo.get().strip()
-        ingredientes = self.txt_ingredientes.get("1.0", "end").strip()
-        instrucciones = self.txt_instrucciones.get("1.0", "end").strip()
-        foto = self.current_photo_path
-        db.update_recipe(self.selected_recipe_id, nombre, categoria, tiempo, ingredientes, instrucciones, foto)
-        self.status.configure(text=f"Receta modificada (ID {self.selected_recipe_id})")
-        self.on_show_all()
+        db.update_recipe(self.selected_id, nombre, categoria, tiempo, ingredientes, instrucciones, foto)
+        self._refresh_table()
+        CTkMessagebox(title="Éxito", message="Receta actualizada.", icon="check")
 
-    def on_delete(self):
-        if not self.selected_recipe_id:
-            messagebox.showinfo("Eliminar", "Selecciona una receta en la tabla")
+    def _on_delete(self):
+        if not self.selected_id:
+            CTkMessagebox(title="Borrar", message="Selecciona una receta en la tabla.", icon="info")
             return
-        if messagebox.askyesno("Confirmar", f"¿Eliminar receta ID {self.selected_recipe_id}?"):
-            db.delete_recipe(self.selected_recipe_id)
-            self.clear_form()
-            self.on_show_all()
-            self.status.configure(text="Receta eliminada")
+        confirm = CTkMessagebox(title="Confirmar", message="¿Borrar la receta seleccionada?", icon="warning", option_1="Cancelar", option_2="Borrar")
+        if confirm.get() == "Borrar":
+            db.delete_recipe(self.selected_id)
+            self._clear_form()
+            self._refresh_table()
+            CTkMessagebox(title="Éxito", message="Receta borrada.", icon="check")
 
-    def on_search(self):
-        q = self.ent_buscar.get().strip()
-        if not q:
-            self.status.configure(text="Ingresa un texto para buscar")
-            return
-        rows = db.search_recipes(q)
-        self.populate_tree(rows)
-        self.status.configure(text=f"Coincidencias: {len(rows)}")
+    # --------------------------- Búsqueda ------------------------------ #
+    def _on_search(self):
+        text = self.entry_search.get().strip()
+        if not text:
+            self._refresh_table(db.get_all_recipes())
+        else:
+            rows = db.search_recipes(text)
+            self._refresh_table(rows)
 
-    def on_show_all(self):
-        rows = db.get_all_recipes()
-        self.populate_tree(rows)
-        self.status.configure(text=f"Total: {len(rows)} recetas")
+    def _on_search_clear(self):
+        self.entry_search.delete(0, "end")
+        self._refresh_table(db.get_all_recipes())
 
 
 if __name__ == "__main__":
-    app = RecetarioApp()
+    app = App()
     app.mainloop()

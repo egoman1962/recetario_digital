@@ -1,7 +1,5 @@
 import sqlite3
 from pathlib import Path
-from contextlib import contextmanager
-from typing import Iterable, List, Optional, Tuple, Dict, Any
 
 DB_PATH = Path(__file__).with_name("recetario.db")
 
@@ -15,144 +13,83 @@ CREATE TABLE IF NOT EXISTS recetas (
     instrucciones TEXT,
     foto TEXT
 );
-
--- Índices sencillos para acelerar búsquedas por nombre y categoría
-CREATE INDEX IF NOT EXISTS idx_recetas_nombre ON recetas(nombre);
-CREATE INDEX IF NOT EXISTS idx_recetas_categoria ON recetas(categoria);
 """
 
-PRAGMAS = (
-    "PRAGMA foreign_keys = ON;",
-    "PRAGMA journal_mode = WAL;",
-    "PRAGMA synchronous = NORMAL;",
-)
 
-
-@contextmanager
 def get_conn():
-    """Context manager que abre una conexión con ajustes seguros y la cierra automáticamente.
-
-    Nota: row_factory=sqlite3.Row permite acceder por nombre de columna.
-    """
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
-    try:
-        conn.row_factory = sqlite3.Row
-        for p in PRAGMAS:
-            conn.execute(p)
-        yield conn
+    return conn
+
+
+def init_db():
+    with get_conn() as conn:
+        conn.execute(SCHEMA)
         conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
 
 
-def init_db() -> None:
+def add_recipe(nombre, categoria, tiempo, ingredientes, instrucciones, foto):
     with get_conn() as conn:
-        conn.executescript(SCHEMA)
-
-
-# --------------------------- Utilidades --------------------------- #
-
-def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
-    return {k: row[k] for k in row.keys()}
-
-
-# ----------------------------- CRUD ------------------------------- #
-
-def add_recipe(nombre: str, categoria: Optional[str], tiempo: Optional[str],
-               ingredientes: Optional[str], instrucciones: Optional[str],
-               foto: Optional[str]) -> int:
-    with get_conn() as conn:
-        cur = conn.execute(
+        cur = conn.cursor()
+        cur.execute(
             """
             INSERT INTO recetas (nombre, categoria, tiempo, ingredientes, instrucciones, foto)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (nombre, categoria, tiempo, ingredientes, instrucciones, foto),
         )
+        conn.commit()
         return cur.lastrowid
 
 
-def update_recipe(recipe_id: int, nombre: str, categoria: Optional[str], tiempo: Optional[str],
-                  ingredientes: Optional[str], instrucciones: Optional[str],
-                  foto: Optional[str]) -> None:
+def update_recipe(recipe_id, nombre, categoria, tiempo, ingredientes, instrucciones, foto):
     with get_conn() as conn:
         conn.execute(
             """
             UPDATE recetas
-               SET nombre = ?,
-                   categoria = ?,
-                   tiempo = ?,
-                   ingredientes = ?,
-                   instrucciones = ?,
-                   foto = ?
-             WHERE id = ?
+               SET nombre=?, categoria=?, tiempo=?, ingredientes=?, instrucciones=?, foto=?
+             WHERE id=?
             """,
             (nombre, categoria, tiempo, ingredientes, instrucciones, foto, recipe_id),
         )
+        conn.commit()
 
 
-def delete_recipe(recipe_id: int) -> None:
+def delete_recipe(recipe_id):
     with get_conn() as conn:
-        conn.execute("DELETE FROM recetas WHERE id = ?", (recipe_id,))
+        conn.execute("DELETE FROM recetas WHERE id=?", (recipe_id,))
+        conn.commit()
 
 
-# -------------------------- Lecturas ------------------------------ #
-
-def get_all_recipes(as_dict: bool = True) -> List[Any]:
+def get_all_recipes():
     with get_conn() as conn:
         cur = conn.execute(
-            "SELECT id, nombre, categoria, tiempo, ingredientes, instrucciones, foto\n             FROM recetas\n             ORDER BY id DESC"
+            "SELECT id, nombre, categoria, tiempo, ingredientes, instrucciones, foto FROM recetas ORDER BY id DESC"
         )
-        rows = cur.fetchall()
-        if as_dict:
-            return [_row_to_dict(r) for r in rows]
-        return rows
+        return cur.fetchall()
 
 
-def search_recipes(query_text: str, as_dict: bool = True) -> List[Any]:
+def search_recipes(query_text):
     like = f"%{query_text.strip()}%"
     with get_conn() as conn:
         cur = conn.execute(
             """
             SELECT id, nombre, categoria, tiempo, ingredientes, instrucciones, foto
               FROM recetas
-             WHERE nombre LIKE ? ESCAPE '\\' COLLATE NOCASE
-                OR categoria LIKE ? ESCAPE '\\' COLLATE NOCASE
-                OR ingredientes LIKE ? ESCAPE '\\' COLLATE NOCASE
+             WHERE nombre LIKE ? OR categoria LIKE ? OR ingredientes LIKE ?
              ORDER BY id DESC
             """,
             (like, like, like),
         )
-        rows = cur.fetchall()
-        return [_row_to_dict(r) for r in rows] if as_dict else rows
+        return cur.fetchall()
 
 
-def get_recipe_by_id(recipe_id: int, as_dict: bool = True) -> Optional[Any]:
+def get_recipe_by_id(recipe_id):
     with get_conn() as conn:
         cur = conn.execute(
-            "SELECT id, nombre, categoria, tiempo, ingredientes, instrucciones, foto\n             FROM recetas WHERE id = ?",
+            "SELECT id, nombre, categoria, tiempo, ingredientes, instrucciones, foto FROM recetas WHERE id=?",
             (recipe_id,),
         )
-        row = cur.fetchone()
-        return _row_to_dict(row) if (row and as_dict) else row
-
-
-# ------------------------ Mantenimiento --------------------------- #
-
-def integrity_check() -> bool:
-    """Devuelve True si la BD pasa PRAGMA integrity_check."""
-    with get_conn() as conn:
-        res = conn.execute("PRAGMA integrity_check;").fetchone()
-        return bool(res and res[0] == "ok")
-
-
-def vacuum() -> None:
-    with get_conn() as conn:
-        conn.execute("VACUUM;")
+        return cur.fetchone()
 
 
 if __name__ == "__main__":

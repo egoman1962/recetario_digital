@@ -45,6 +45,7 @@ class App(ctk.CTk):
         # Frame izquierdo
         self.frame_izquierdo = ctk.CTkFrame(self, fg_color='gray12', width=360, height=984)
         self.frame_izquierdo.place(x=12, y=12)
+        self._build_left_actions()
 
         # Frame derecho
         self.frame_derecho = ctk.CTkFrame(self, fg_color='gray12', width=1518, height=984)
@@ -79,6 +80,30 @@ class App(ctk.CTk):
 
     # Refrescar listado al inicio
         self._refresh_table()
+
+    def _build_left_actions(self):
+        # Título
+        ctk.CTkLabel(
+            self.frame_izquierdo,
+            text="ACCIONES",
+            text_color='green',
+            font=("Arial", 24, "bold")
+        ).pack(anchor="w", padx=16, pady=(16, 8))
+
+        # Contenedor de botones
+        actions = ctk.CTkFrame(self.frame_izquierdo, fg_color="transparent")
+        actions.pack(fill="x", padx=16)
+
+        # Botones CRUD (a lo ancho, alto uniforme)
+        ctk.CTkButton(actions, text="Nuevo", height=48,
+                      command=self._on_new).pack(fill="x", pady=6)
+        ctk.CTkButton(actions, text="Guardar", height=48,
+                      command=self._on_save).pack(fill="x", pady=6)
+        ctk.CTkButton(actions, text="Actualizar", height=48,
+                      command=self._on_update).pack(fill="x", pady=6)
+        ctk.CTkButton(actions, text="Borrar", height=48,
+                      fg_color="#a33", hover_color="#c55",
+                      command=self._on_delete).pack(fill="x", pady=6)
 
     # PANEL DE FOTO #######################################################################################
 
@@ -295,14 +320,6 @@ class App(ctk.CTk):
         self.tree.pack(fill="both", expand=True, padx=8, pady=8)
         self.tree.bind("<<TreeviewSelect>>", self._on_select_row)
 
-        # Botonera CRUD
-        btns = ctk.CTkFrame(self.frame_tabla, fg_color="transparent")
-        btns.pack(fill="x", padx=16, pady=(0, 12))
-        ctk.CTkButton(btns, text="Nuevo", command=self._on_new).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="Guardar", command=self._on_save).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="Actualizar", command=self._on_update).pack(side="left", padx=4)
-        ctk.CTkButton(btns, text="Borrar", fg_color="#a33", hover_color="#c55", command=self._on_delete).pack(side="left", padx=4)
-
         self.tree.bind("<<TreeviewSelect>>", self._on_select_row)
 
     # --------------------------- Helpers ------------------------------- #
@@ -384,8 +401,8 @@ class App(ctk.CTk):
             """
         # Asegura tags de estilo (las puedes ajustar a tu gusto)
         # Nota: si ya los configuraste antes, no pasa nada por reconfigurarlos aquí.
-        self.tree.tag_configure("even", background="#202020", foreground="#e6e6e6")
-        self.tree.tag_configure("odd", background="#262626", foreground="#e6e6e6")
+        self.tree.tag_configure("even", background='gray50', foreground='black')
+        self.tree.tag_configure("odd", background='gray75', foreground='black')
 
         # (Opcional) preservar selección actual por ID
         selected_id = None

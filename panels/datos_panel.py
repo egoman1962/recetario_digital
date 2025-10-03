@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import tkinter as tk  # para StringVar
 
 class DatosPanel(ctk.CTkFrame):
     def __init__(self, master, controller):
@@ -27,9 +28,49 @@ class DatosPanel(ctk.CTkFrame):
         self.option_categoria.place(x=54, y=228)
         self.option_categoria.set("Desayuno")
 
-        # Tiempo
+        # Tiempo (con sufijo ' min')
         ctk.CTkLabel(self, text="TIEMPO:", font=("Arial", 21, "bold"),
                      fg_color='gray6').place(x=90, y=288)
-        self.entry_tiempo = ctk.CTkEntry(self, width=300, font=("Arial", 18, "bold"),
-                                         fg_color='#1F6AA5', border_color='#144870')
+
+        self.tiempo_var = tk.StringVar()
+        self.entry_tiempo = ctk.CTkEntry(
+            self, width=300, font=("Arial", 18, "bold"),
+            fg_color='#1F6AA5', border_color='#144870',
+            textvariable=self.tiempo_var
+        )
         self.entry_tiempo.place(x=54, y=336)
+
+        # Eventos para mantener el sufijo y sólo dígitos
+        self.entry_tiempo.bind("<KeyRelease>", self._on_tiempo_change)
+        self.entry_tiempo.bind("<FocusOut>",  self._on_tiempo_change)
+
+    # ---------- Helpers de tiempo con sufijo ---------- #
+    def _format_tiempo(self, text: str) -> str:
+        # conservar sólo dígitos
+        digits = "".join(ch for ch in text if ch.isdigit())
+        return f"{digits} min" if digits else ""
+
+    def _on_tiempo_change(self, _evt=None):
+        current = self.tiempo_var.get()
+        formatted = self._format_tiempo(current)
+        if current != formatted:
+            # Actualiza el texto y coloca el cursor antes del sufijo
+            self.tiempo_var.set(formatted)
+            digits_len = len(formatted.replace(" min", ""))
+            # mover el cursor al final de los dígitos
+            self.entry_tiempo.after(0, lambda: self.entry_tiempo.icursor(digits_len))
+
+    # Para que el controlador pueda leer/poner el valor fácilmente
+    def get_tiempo_minutes(self) -> str | None:
+        """Devuelve sólo los minutos (ej. '30') o None si vacío."""
+        text = self.tiempo_var.get()
+        digits = "".join(ch for ch in text if ch.isdigit())
+        return digits or None
+
+    def set_tiempo_minutes(self, minutes: int | str | None):
+        """Asigna minutos y muestra 'NN min' o vacío si None."""
+        if minutes is None or str(minutes).strip() == "":
+            self.tiempo_var.set("")
+        else:
+            self.tiempo_var.set(f"{int(minutes)} min")
+            self.entry_tiempo.icursor(len(str(int(minutes))))
